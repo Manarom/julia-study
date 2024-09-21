@@ -60,5 +60,57 @@ collect(A(2,3))
 # after adding the element type this two benchmarks give the same timing
 @benchmark [i for i in A(10,3)]
 @benchmark collect(A(10,3))
-sum(A(10,3))
+# sum function can be used with iterators without memory allocation for th eintermediate vector
+# first is fater than the second one, the third has the same speed as the first one and uses generator sintax
+@benchmark sum(A(10,3))
+@benchmark sum(collect(A(10,3)))
+@benchmark sum(i for i in A(10,3))
+
+end
+@code_warntype sum(i for i in study_interf_iteration.A(10,3))
+@code_warntype sum(study_interf_iteration.A(10,3))
+
+module study_interf_indexing
+using BenchmarkTools
+struct A
+    counter::Int
+    pow::Float64
+end
+Base.iterate(a::A,state=1) = state > a.counter ? nothing : (state^a.pow,state+1)
+Base.eltype(::A)=Float64 # this adds type to the first element of the iterate return tuple
+Base.length(a::A)=a.counter
+
+#= to implement collection like behaviour several methods should be implemented for a particular type
+
+getindex(X, i)	X[i], indexed element access
+setindex!(X, v, i)	X[i] = v, indexed assignment
+firstindex(X)	The first index, used in X[begin]
+lastindex(X)	The last index, used in X[end]
+=#
+Base.getindex(a::A,i) = iterate(a,i)[1] # this version is without out of bounds check
+A(4,6)[2]
+struct B
+    counter::Int
+    pow::Float64
+end
+Base.getindex(a::B,i) = i<=a.counter ? i^a.pow : error("out of bounds")
+B(4,6)[2]
+
+@benchmark A(4,6)[2]
+@benchmark B(4,6)[2]
+# adding first and last index allows to get elements using [begin] [end] sintax
+Base.lastindex(a::B) = a.counter
+Base.firstindex(::B) = 1
+B(4,6)[end]
+end
+
+module study_abstract_array
+
+A = 
+struct A <:AbstractArray
+
+end
+
+a = A()
+
 end

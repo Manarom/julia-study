@@ -15,3 +15,4 @@ end
 # @__DIR__ - returns current path as a string
 path_name = @__DIR__
 @code_warntype # checks the function call for type stability
+@which # macro returns gives dispatched nethod 
