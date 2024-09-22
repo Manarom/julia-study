@@ -1,0 +1,84 @@
+1. Install Documenter.jl
+2. In project parent directory add the folder ".\docs\"
+3. Add folder ".\docs\src\", it should contain "index.md" and other *.md files with description of tabs
+4. Create file make.jl in the ".\docs\" folder. Example of make.jl file content:
+    #begin_of_make.jl_file
+        push!(LOAD_PATH,"../src/")
+        include("../src/BandPyrometry.jl") # modules should be available for make.jl namespace
+        using Documenter,.BandPyrometry # modules should be available for make.jl namespace
+        mathengine = Documenter.MathJax3() # this is for latex interpretation
+        makedocs(
+                sitename = "BandPyrometry.jl",
+                highlightsig = false,
+                checkdocs = :none,
+                format=Documenter.HTML(size_threshold = 2000 * 2^10),
+                pages=[
+                        "Home" => "index.md" 
+                        "Examples"=>["BandPyrometry"=>"pluto_tests_git.md"
+                                    "Planck" =>"pluto_tests_git.md"
+                        ]
+                        "Modules" => [
+                            "Planck" =>"planck.md"
+                            "BandPyrometry" => "bandpyrometry.md"
+                            "Pyrometers" => "pyrometers.md"
+                            "JDXreader" => "jcamp-reader.md"
+                        ] 
+                    ]#
+                    )
+        #deploydocs(;
+        #         repo="github.com/Manarom/BandPyrometry"
+        #)
+    #end_of_make.jl_file
+5. Example of index.md file:
+
+    #begin_of_make.jl_file
+        # BandPyrometry.jl
+        ## General description
+
+            ```@raw html
+            <p>Detailed description of the underlying mathematics is available at:<a href="assets/supplementary_v_0_0_1.pdf">Download PDF</a>.</p
+            ```
+
+            - Planck.jl module contains several functions to evaluate: 
+                - Blackbody spectral intensity (Planck function)
+                - The first and the second derivatives of Planck function with respect to the wavelength and temperature 
+                - Planck function fast integration over the specified wavelength region  
+
+            ## Contact
+
+            To contact me, please do it through the [GitHub repository](https://github.com/Manarom/BandPyrometry).
+
+            ## License
+
+            Copyright (c) 2024 Roman Mironov
+
+            Permission is hereby granted, free of charge, to any person obtaining a copy
+            of this software and associated documentation files (the "Software"), to deal
+            in the Software without restriction, including without limitation the rights
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+            copies of the Software, and to permit persons to whom the Software is
+            furnished to do so, subject to the following conditions:
+
+            The above copyright notice and this permission notice shall be included in all
+            copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    #endof_index.md_file
+
+6. To automatically generate doc from source files md - file should contain:
+    # Functions for blackbody thermal emission (and its derivatives) calculation
+
+        ```@autodocs
+            Modules = [Planck]
+            Order   = [:function, :type]
+        ```
+7. After creating all files, run "julia --project make.jl" from ".\docs\" parent directory, this 
+command will create folder ".\docs\build\"
+8. To add some files like pdf's or figures add them to ".\docs\src\assets\" directory the content of this directory 
+will be copied to the ".\docs\build\assets" folder to reference e.g. ".\docs\src\assets\file.pdf" the following 
+code in the *.md file can be used:
+        ```@raw html
+        <p>Detailed description....:<a href="assets/1.pdf">Download PDF</a>.</p
+        ```
