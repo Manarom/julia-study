@@ -106,7 +106,6 @@ end
 
 module study_abstract_array
 
-A = 
 struct A <:AbstractArray
 
 end
