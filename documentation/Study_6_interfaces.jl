@@ -103,13 +103,31 @@ Base.lastindex(a::B) = a.counter
 Base.firstindex(::B) = 1
 B(4,6)[end]
 end
-
+# This module implements AbstractArray abstract class
 module study_abstract_array
-
-struct A <:AbstractArray
-
+using BenchmarkTools
+struct A <:AbstractArray{Float64,1}
+    counter::Int
+    pow::Float64
 end
-
-a = A()
-
+Base.size(a::A) = (a.counter,)
+Base.getindex(a::A,i::Int) = i<=a.counter ? i^a.pow : error("index mismatch")
+Base.getindex(a::A,i::Number) = a[convert(Int, i)]
+Base.eltype(::A)=Float64
+a = A(5,3.0)
+a.*a
+A(4,2.0)[2:4]
+for a in A(4,2.0)
+    @show a
+end
+sin.(a)
+similar(A(4,3))
+similar(A(4,3),ComplexF64)
+@benchmark A(4,2.0)[2:4]
+#Base.getindex(a::A,I) = [a[i] for i in I]
+Base.IndexStyle(::A) = IndexLinear()
+A(5,1.0)[A(5,1.0).>3]
+filter(i->isless(i,3.0),A(5,1.0))
+copy(A(5,2.0))
+A(5,1.0)[A(3,1.0)] #this works because we added non-integer indexing 
 end
