@@ -134,3 +134,26 @@ end
 
 
 # developing non-standart string literals
+macro nbp_str(s)
+    l,r=Base.parse.(Int,split(s,":"))
+    return [i for i in l:r]
+end
+@code_lowered nbp"1:4"
+
+
+
+#Using generated funcitons
+
+@generated function doubled(x)
+    @show x
+    return :(2*x)
+end
+doubled(2)
+
+foo3(x)=begin
+    return doubled(x)
+end
+foo3(45)
+x=55
+doubled(6.0)
+ 
