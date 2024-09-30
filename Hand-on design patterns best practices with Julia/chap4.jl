@@ -1,14 +1,12 @@
 # chapter 4 Metaprogramming
 # Meta.pase function parses string as an expression
 # dump funciton expands the expression 
-Meta.parse("2+3")
+Meta.parse("2+3") # parses string to Expr
 Meta.parse("sin(pi)")|>typeof
-dump(Meta.parse("sin(pi)"))
+dump(Meta.parse("sin(pi)")) # dump function shows expression structure
 Meta.parse("sin(cos(pi))") |> dump
+Expr(:call,:sin,:pi)|>eval # manually constructed expression
 
-# the expression can be constructed manually:
-e1 = Expr(:call,:sin,:pi)
-eval(e1)
 Meta.parse("sin(π)") |> eval
 a = "f(x::Float64) = begin 
     x+=10 
@@ -20,7 +18,8 @@ b = :(f(x::Float64) = begin
     return x^2 
 end)
 dump(b)
-
+@code_lowered eval(b)
+Meta.@lower b
 :(a>b ? "true" : nothing) |> dump
 :(if a>b "true" else nothing end) |>dump
 :(eval(:(sin(pi)))) |> dump
@@ -42,6 +41,7 @@ end
 c2 # it is undefined
 eval_check2.f_eval1()
 c2 # still undefined
+# eval evaluates expression in the global scope
 
 # Expressions can be creates via the interpolation
 
@@ -143,7 +143,8 @@ end
 
 
 #Using generated funcitons
-
+# The main feature of generated functions is that it knows about types
+# Comon macros does not
 @generated function doubled(x)
     @show x
     return :(2*x)
