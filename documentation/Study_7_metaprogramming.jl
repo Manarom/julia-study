@@ -1,5 +1,5 @@
 # Metaprogramming
-
+using BenchmarkTools,TreeView
 # All programs are first parsed as expressions
 # expressions can be constructed manually:
 
@@ -128,6 +128,12 @@ ex3|>dump
 eval(ex3)
 B(3,4.5)
 eval(ex3)
+
+Macros
+# Macros provide a mechanism to include generated code in the final body of a program. 
+# A macro maps a tuple of arguments to a returned expression, and the resulting expression 
+# is compiled directly rather than requiring a runtime eval call. Macro arguments may 
+# include expressions, literal values, and symbols.
 macro mody_type(ex) # macro to change the name of type
     @show ex
     dump(ex)
@@ -140,8 +146,8 @@ end
         b::Int
         c::Float64
 end
-:(
+@tree :(
     function f(x::Int)
         return x*x
     end
-)|>eval
+)
