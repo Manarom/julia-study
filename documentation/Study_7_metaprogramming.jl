@@ -118,3 +118,30 @@ macro simple_assert(cond)
     )
 end
 @simple_assert 1==3
+ex3 = :(begin
+    struct B
+        a::Int
+        b::Float64
+    end
+end)
+ex3|>dump
+eval(ex3)
+B(3,4.5)
+eval(ex3)
+macro mody_type(ex) # macro to change the name of type
+    @show ex
+    dump(ex)
+    if ex.head == :struct
+        ex.args[2]=Symbol("modified"*String(ex.args[2]))
+    end 
+    return ex
+end
+@mody_type struct A
+        b::Int
+        c::Float64
+end
+:(
+    function f(x::Int)
+        return x*x
+    end
+)|>eval
