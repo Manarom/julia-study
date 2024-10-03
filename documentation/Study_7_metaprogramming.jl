@@ -1,5 +1,5 @@
 # Metaprogramming
-using BenchmarkTools,TreeView
+using BenchmarkTools
 # All programs are first parsed as expressions
 # expressions can be constructed manually:
 
@@ -95,6 +95,8 @@ f_eval.@eval_exp(:(if a>b
 else
     b
 end    ))
+
+
 # MACROS
 
 # Macros provide a mechanism to include generated code in the final
@@ -114,40 +116,54 @@ macro simple_assert(cond)
     @show  cond
     :(
        
-        $cond ? nothing : throw(AssertionError("Error: "*$(string(cond))))
+        cond ? nothing : throw(AssertionError("Error: "*$(string(cond))))
     )
 end
-@simple_assert 1==3
+ex4 = @macroexpand @simple_assert 1==3
 ex3 = :(begin
     struct B
         a::Int
         b::Float64
     end
 end)
-ex3|>dump
-eval(ex3)
-B(3,4.5)
-eval(ex3)
+ex4 = Base.remove_linenums!(copy(ex3)) # removes linenumber nodes!
 
-Macros
+
+
+ex3|>dump
+ex4|>dump
+
+# Macros
 # Macros provide a mechanism to include generated code in the final body of a program. 
 # A macro maps a tuple of arguments to a returned expression, and the resulting expression 
 # is compiled directly rather than requiring a runtime eval call. Macro arguments may 
 # include expressions, literal values, and symbols.
+
+# Macros are necessary because they execute when code is parsed, therefore, macros allow 
+# the programmer to generate and include fragments of customized code before the full program is run.
+# Напишем по-русски, чтобы лучше запомнить, тело макроса разворачивается при парсинге
+macro twostep(arg)
+    println("I execute at parse time. The argument is: ", arg)
+    return :(println("I execute at runtime. The argument is: ", $arg))
+end
+exx1 = @macroexpand @twostep(1+35);
+exx1
+
+# We need macros because the functions don't know the names of variables (only values) 
 macro mody_type(ex) # macro to change the name of type
     @show ex
     dump(ex)
+    @show __source__
     if ex.head == :struct
         ex.args[2]=Symbol("modified"*String(ex.args[2]))
     end 
     return ex
 end
-@mody_type struct A
+
+
+@macroexpand @mody_type struct A
         b::Int
         c::Float64
 end
-@tree :(
-    function f(x::Int)
-        return x*x
-    end
-)
+
+
