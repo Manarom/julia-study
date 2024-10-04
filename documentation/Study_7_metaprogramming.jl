@@ -141,7 +141,9 @@ ex4|>dump
 
 # Macros are necessary because they execute when code is parsed, therefore, macros allow 
 # the programmer to generate and include fragments of customized code before the full program is run.
-# Напишем по-русски, чтобы лучше запомнить, тело макроса разворачивается при парсинге
+# Напишем по-русски, чтобы лучше запомнить, тело макроса разворачивается при парсинге, во что
+# оно разворачивается можно посмотреть при помощи @macroexpand, при этом, @macroexpan возвращает 
+# то, что возращает сам макрос
 macro twostep(arg)
     println("I execute at parse time. The argument is: ", arg)
     return :(println("I execute at runtime. The argument is: ", $arg))
@@ -166,4 +168,8 @@ end
         c::Float64
 end
 
+module m1
+    f(a::Number) = sin(a)
+    
+end
 
