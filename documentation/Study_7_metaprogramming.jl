@@ -55,7 +55,7 @@ ex2 = :(:($$x))
 eval(ex2) |>typeof
 
 
-#QuoteNode
+#QuoteNode - A quoted piece of code, that does not support interpolation
 
 Meta.parse(":x")|>dump
 # the parser automatically add QuoteNode for :a to mark it as a symbol
@@ -114,9 +114,8 @@ end
 
 macro simple_assert(cond)
     @show  cond
-    :(
-       
-        cond ? nothing : throw(AssertionError("Error: "*$(string(cond))))
+    :(     
+        Bool($cond) ? nothing : throw(AssertionError("Error: "*$(string(cond))))
     )
 end
 ex4 = @macroexpand @simple_assert 1==3
@@ -144,6 +143,7 @@ ex4|>dump
 # Напишем по-русски, чтобы лучше запомнить, тело макроса разворачивается при парсинге, во что
 # оно разворачивается можно посмотреть при помощи @macroexpand, при этом, @macroexpan возвращает 
 # то, что возращает сам макрос
+
 macro twostep(arg)
     println("I execute at parse time. The argument is: ", arg)
     return :(println("I execute at runtime. The argument is: ", $arg))
@@ -173,3 +173,60 @@ module m1
     
 end
 
+
+
+# hygiene
+
+macro time_test1(ex)
+    return quote
+        local t0 = time_ns() # adding local to quote automatically uses gensym for t0 variable
+        local val = $ex
+        local t1 = time_ns()
+        println("elapsed time: ", (t1-t0)/1e9, " seconds")
+        val
+    end
+end
+
+macro time_test2(ex)
+    return quote
+        local t0 = time_ns() # adding local to quote automatically uses gensym for t0 variable
+        local val = $(esc(ex)) # using esc function allows to use local variables inside expression
+        # revents the macro hygiene pass from turning embedded variables into gensym variables.   
+
+        local t1 = time_ns()
+        println("elapsed time: ", (t1-t0)/1e9, " seconds")
+        val
+    end
+end
+
+module mod2
+    import Main.@time_test1
+    import Main.@time_test2
+    @macroexpand @time_test1 rand(1000)
+    time_ns()=15.1 # we define self-made function with the same name as use locally in macros
+    @macroexpand @time_test1 time_ns()
+    @time_test1 time_ns() # this returns incorrect result
+    @time_test2 time_ns() # this returns correct result for time_ns function (local for this module) because of the `esc` function
+end
+
+@time time_ns()
+
+
+macro mac1_test()
+    return quote
+         local t=rand(1) # here we mark variable t as local for thic macro, thus 
+         t
+    end
+end
+macro mac2_test()
+    t = gensym() # this function generates the simbol not matching any variables within the scope
+    return quote
+         $t=rand(1) # here we mark variable t as local for thic macro, thus 
+         $t
+    end
+end
+@macroexpand @mac1_test # both of this macros are practically the same
+@macroexpand @mac2_test
+@mac1_test
+@mac2_test
+@task
