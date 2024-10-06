@@ -144,7 +144,7 @@ end
 
 #Using generated funcitons
 # The main feature of generated functions is that it knows about types
-# Comon macros does not
+# Common macros does not know about types
 @generated function doubled(x)
     @show x
     return :(2*x)

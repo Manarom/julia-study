@@ -175,7 +175,8 @@ end
 
 
 
-# hygiene
+# hygiene. The main idea of julia hygiene is to prevent macros local variables names shadowing the gloabl variables 
+# of the module where macro is expanded
 
 macro time_test1(ex)
     return quote
@@ -185,8 +186,8 @@ macro time_test1(ex)
         println("elapsed time: ", (t1-t0)/1e9, " seconds")
         val
     end
-end
-
+end # this macro works well till the input ex does not contain any variables of functions with the same names as 
+# of the variables marked local inside the macro 
 macro time_test2(ex)
     return quote
         local t0 = time_ns() # adding local to quote automatically uses gensym for t0 variable
@@ -198,35 +199,183 @@ macro time_test2(ex)
         val
     end
 end
-
+# the difference between this two macros is illustrated inside the module mod2
 module mod2
-    import Main.@time_test1
-    import Main.@time_test2
-    @macroexpand @time_test1 rand(1000)
+    import Main.@time_test1 # importing both macros
+    import Main.@time_test2 
+    ex1 = @macroexpand @time_test1 rand(1000)
+    ex2 = @macroexpand @time_test2 rand(1000)
+    @show ex1
+    @show ex2
     time_ns()=15.1 # we define self-made function with the same name as use locally in macros
-    @macroexpand @time_test1 time_ns()
+    ex3 = @macroexpand @time_test1 time_ns() # this macro the mod2 version of the function time_ns() is replaced with the Main.time_ns() 
+    ex4 = @macroexpand @time_test2 time_ns()
+    @show ex3
+    @show ex4
+    # the difference between ex3 and ex4 is that the first one replaced 
+    # time_ns() with the one from the module where this macro was created (Main module)
+    # thus when the variable is evaluated is returns incorrect results
     @time_test1 time_ns() # this returns incorrect result
     @time_test2 time_ns() # this returns correct result for time_ns function (local for this module) because of the `esc` function
 end
 
-@time time_ns()
-
-
-macro mac1_test()
+# the following illustrates different ways of creating local variable inside 
+# macros consistent with the julia hygiene idea
+macro mac1_test() # this version uses local to call the gensym implisitly
     return quote
          local t=rand(1) # here we mark variable t as local for thic macro, thus 
          t
     end
 end
-macro mac2_test()
+macro mac2_test() # this version of macros uses gensym() explicitly to get a new name of the local variable
     t = gensym() # this function generates the simbol not matching any variables within the scope
     return quote
          $t=rand(1) # here we mark variable t as local for thic macro, thus 
          $t
     end
 end
-@macroexpand @mac1_test # both of this macros are practically the same
-@macroexpand @mac2_test
+macro mac2_a_test()
+    @gensym t
+    return quote
+        $t=rand(1)
+        $t
+    end
+end
+@macroexpand @mac1_test # both of this macros are practically the same, but the first one uses local variable inside the quote
+@macroexpand @mac2_test # this macro uses gensym function to generate a consistent name for the local variable
+@macroexpand @mac2_a_test
 @mac1_test
 @mac2_test
-@task
+@mac2_a_test
+# Macros and dispatch
+macro mac3_test end # macro with 0 methods
+macro mac3_test(ex::Int)
+    :(println("Integer input"))
+end
+
+@mac3_test(3)
+x=3
+@mac3_test x # this returns error because the macro dispatches at the parse time not the runtime
+# thus the input is :(x) macros doesnt know about the type of the input!
+
+#CODE GENERATION
+# using eval function we can generate functions for any particular type
+struct C
+    x::Float64
+end
+
+generate_C_methods()=begin
+    for i in [:sin,:cos]
+        eval(:(
+            
+        Base.$i(c::C)=Base.$i(c.x)
+        ))
+    end
+end
+
+generate_C_methods() # generating several function for C type struct
+sin(C(pi)) # this functions are available now
+cos(C(10.0))
+generate_C_methods2()=begin # this function can be rewritten using @eval macros
+    for i in [:sin,:cos]
+        @eval $i(c::C)=Base.$i(c.x)
+    end
+end
+generate_C_methods2()
+sin(C(0))
+
+
+# NON-STANDARD STRING LITERALS
+# String literals are expanded at a compil tyme thus they are more efficient
+macro SelfLiteral_str(s::String)
+    l,r=Base.parse.(Int,split(s,":"))
+    return [i for i in l:r]
+end
+@macroexpand SelfLiteral"1:10"
+
+
+fun1()=begin
+    s=0.0
+    for i in SelfLiteral"1:10"
+        s+=i
+    end
+    return s
+end
+
+fun2()=begin
+    s=0.0
+    for i in 1:10
+        s+=i
+    end
+    return s
+end
+fun2()
+fun1()
+@benchmark fun2()
+@benchmark fun1()
+
+# this part is not clear 
+macro SL_str(s::String,flag)
+    l,r=Base.parse.(Int,split(s,":"))
+    @show flag
+    if Base.parse(Bool,flag)
+        return [i for i in l:r]
+    else
+        return range(l,r)
+    end
+end
+flag="true"
+@macroexpand SL"1:10""true"
+SL"1:10"flag
+Base.parse(Bool,"true")
+
+
+# GENERATED functions
+
+#= While macros work with expressions at parse time and cannot access 
+the types of their inputs, a generated function gets expanded at a time 
+when the types of the arguments are known, but the function is not yet compiled.
+
+Distinction of generated function from common functions: 
+
+* abbreviation with @generated
+* generated functions know only types of variables not values
+* return quoted expressions like macros
+* may call functions defined before the generated function (where, in code?)
+* must not mutate or observe any global non-contant state (???)
+=#
+@generated function foo(x)
+        Core.println(x) # function body returned only when the foo() is called on the argument of 
+        # a new type, after that the compiled version of funciton is used
+        if x==Int
+            return :(println("an int"))
+        else
+            return :(println("not int"))
+        end
+end
+@code_warntype foo("")
+@code_warntype foo(90)
+foo("a")
+# Note that there is no printout of Int64. We can see that the
+# body of the generated function was only executed once here, for 
+# the specific set of argument types, and the result was cached.
+# still i dont know when the generated function is better than multiple dispatch....
+
+# Generated function are useful when all needed information is in the type of the argument
+# thus all runtime execution can be done at a compile time!! (see docs example 
+# for multidimentional array index to linear index conversion)
+
+# Generated functions can be optionally generated in this case the syntax is the following:
+
+#=
+function optionally_generated(args)
+    #do smthng  - this part will be done always on runtime
+    if @generated
+        return :(....) # branch when generated fintion is used
+    else # run-time branch of the function
+        return normal_value
+    end
+end
+=#
+# in the case of optionally generated function compiler desides 
+# by itself which brecnh should be used
