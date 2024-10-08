@@ -6,6 +6,7 @@
 *Code generation pattern
 *Domain-specific language pattern
 =#
+#-------------------------submodule patter-------------------------------------
 
 # efferent coupling of component A - number of components the A is using 
 # afferent coupling of component A - number of components which use A
@@ -51,3 +52,25 @@ end
 
 A.f4()
 B.f1()
+
+
+
+
+#-----------------Key-word definition pattern------------------------
+# Base.@kwdef  - adds Constructor with keyword arguments and allows default values
+
+Base.@kwdef struct TextStyle
+    font_family
+    font_size
+    font_weight = "Normal"
+    foreground_color = "black"
+    background_color= "white"
+    alignment = "center"
+    rotation = 0
+end
+o=TextStyle(font_family="Arial",font_size=5, alignment="left")
+o.font_weight
+# default constructor is still available
+o2 = TextStyle(
+"ghjg",
+6, "Normal", "black", "white", "center",0)
