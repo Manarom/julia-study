@@ -183,3 +183,13 @@ rngd_copy = deepcopy(collect(rngd))
     @benchmark rngd_copy.= @. sin(cos(rngd))
     @benchmark rngd_copy.=broadcast(fun,rngd)
     @benchmark map!(fun,collect(rngd),rngd_copy)
+
+
+# using multiple dispatch to extract parameters from parametric types
+
+second_par(::AbstractArray{T,N}) where {T,N}=N
+# version of the same function with the use of internal
+second_par2(T::DataType) = begin
+    return length(T.parameters)>=2 ? T.parameters[2] : nothing
+end
+# the second version is faster but the former is safer 

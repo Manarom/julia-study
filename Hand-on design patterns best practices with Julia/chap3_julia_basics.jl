@@ -41,12 +41,12 @@ export plus_
 This function `must` be impemented
     This function is applied to the left argument of the summation 
 """
-function leftarg end # abstract functions declared but having no methods, in the docstring there should be details of this implementation
+function leftarg(_) end # abstract functions declared but having no methods, in the docstring there should be details of this implementation
 """
 This function `must` be impemented
     It is applied to the right argument of the summation
 """
-function rightarg end # abstract function declared but having no methods
+function rightarg(_) end # abstract function declared but having no methods
 # as far as all functions should be impemented for plus_ to work 
 # this this type of interface is called `hard constract`
 function plus_(a,b)
