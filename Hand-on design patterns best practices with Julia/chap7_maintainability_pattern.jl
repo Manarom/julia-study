@@ -74,3 +74,21 @@ o.font_weight
 o2 = TextStyle(
 "ghjg",
 6, "Normal", "black", "white", "center",0)
+
+
+#--------------------Code----generation------pattern--------------
+# when several functions has practically the same code, they can be generated using @eval macros
+fnames = (:A,:B,:C)
+
+for fn in fnames
+    @eval function $fn()
+        return string($fn)
+    end
+end
+A()
+B()
+@macroexpand @eval function $fn()
+    return string($fn)
+end
+
+methods(C)

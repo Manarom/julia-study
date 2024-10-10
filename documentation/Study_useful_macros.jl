@@ -44,3 +44,27 @@ b3 = view(a,3:10) # this is OK
 b4 = @view a[3:end] # for @view end word is OK
 b3==b4 
 
+# Base.@kwdef  - adds Constructor with keyword arguments and allows default values
+@macroexpand Base.@kwdef struct TextStyle
+    font_family
+    font_size
+    font_weight = "Normal"
+    foreground_color = "black"
+    background_color= "white"
+    alignment = "center"
+    rotation = 0
+end
+
+using Lazy: @forward
+
+struct D
+    d
+end
+f(x::D)="d"
+struct D_wrapper
+    d::D
+end
+
+@forward D_wrapper.d f # generates method f(x::CC) = f(x.d)
+@which f(D_wrapper(D(10)))
+
