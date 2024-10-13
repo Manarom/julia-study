@@ -111,7 +111,7 @@ methods(C)
 end
 =#
 module LSYNTAX
-    using Lazy
+    using Lazy, MacroTools
     struct LModel{T<:AbstractString}
         axiom::AbstractVector{T}
         rules::Dict{T,Vector{T}}
@@ -193,6 +193,29 @@ module LSYNTAX
         @show rules
         return :(LState(LModel($axiom,$rules...),$counter))
     end
+    macro lsys2(ex) # this version of macro uses MacroTools
+        # rmlines  - this function removes
+        ex = (MacroTools.postwalk(macro_walk,ex|>rmlines)|>rmlines)
+        @show ex
+        return ex
+    end
+    function macro_walk(ex)
+        ex=rmlines(ex)
+        match_axiom = @capture(ex, axiom: sym_)
+        if match_axiom
+            sym_str = String(sym)
+            return :( model = LModel($sym_str) )
+        end
+        match_rule = @capture(ex, rule: original_->replacement_)
+        if match_rule
+            original_str = string(original)
+            replacement_str = string(replacement)
+            return :(add_rule!(model, $original_str, $replacement_str))
+        end
+        return ex
+    end
+
+
 end
 
 
@@ -205,10 +228,27 @@ ls[end]
 
 end
 
-model= LSYNTAX.@lsys begin
+
+@macroexpand LSYNTAX.@lsys begin
     axiom: A
     rule: A->AB 
     rule: B->A
-    counter: 10
+    counter: 100
 end
-model[5]
+model[25]
+
+
+@macroexpand LSYNTAX.@lsys2 begin
+axiom: A
+rule: A->AB 
+rule: B->A
+counter: 100
+end
+
+ex = :(begin
+axiom: A
+rule: A->AB
+rule: B->A
+end)
+
+MacroTools.postwalk(x->@show(x),ex|>rmlines)
