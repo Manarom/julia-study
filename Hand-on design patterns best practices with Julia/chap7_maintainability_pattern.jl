@@ -115,9 +115,11 @@ module LSYNTAX
     struct LModel{T<:AbstractString}
         axiom::AbstractVector{T}
         rules::Dict{T,Vector{T}}
-        LModel(axiom)=new{typeof(axiom)}([axiom],Dict()) # adding constructor
+        LModel(axiom)=begin
+            new{typeof(axiom)}(split(axiom,""),Dict()) # adding constructor
+        end
         LModel(axiom::T,rules::Pair{T,T}...) where {T<:AbstractString} = begin
-            lm=new{typeof(axiom)}([axiom],Dict())
+            lm=new{typeof(axiom)}(split(axiom,""),Dict())
             for p in rules
                 add_rule!(lm,p[1],p[2])
             end
@@ -196,25 +198,37 @@ module LSYNTAX
     macro lsys2(ex) # this version of macro uses MacroTools
         # rmlines  - this function removes
         ex = (MacroTools.postwalk(macro_walk,ex|>rmlines)|>rmlines)
-        @show ex
         return ex
     end
     function macro_walk(ex)
         ex=rmlines(ex)
         match_axiom = @capture(ex, axiom: sym_)
         if match_axiom
-            sym_str = String(sym)
-            return :( model = LModel($sym_str) )
+            sym_str = string_arg(sym)
+            return :(model = LModel($sym_str) )
         end
         match_rule = @capture(ex, rule: original_->replacement_)
         if match_rule
-            original_str = string(original)
-            replacement_str = string(replacement)
+            original_str = string_arg(original)
+            replacement |> dump
+            replacement_str = string_arg(replacement)
             return :(add_rule!(model, $original_str, $replacement_str))
+        end
+        match_count = @capture(ex,counter: count_val_)
+        if match_count
+            return :(st = LState(model,$count_val))
         end
         return ex
     end
-
+    function string_arg(ex)
+        if ex isa Symbol
+            return String(ex)
+        end
+        if ex isa Expr
+            return string_arg(ex.args[1])
+        end
+        return String(ex) 
+    end
 
 end
 
@@ -229,22 +243,24 @@ ls[end]
 end
 
 
-@macroexpand LSYNTAX.@lsys begin
-    axiom: A
+ls= LSYNTAX.@lsys begin
+    axiom: AC
     rule: A->AB 
-    rule: B->A
-    counter: 100
+    rule: B->AC
+    rule: C->BB
+    counter: 20
 end
-model[25]
+ls[5]
 
 
-@macroexpand LSYNTAX.@lsys2 begin
-axiom: A
-rule: A->AB 
-rule: B->A
-counter: 100
+st = LSYNTAX.@lsys2 begin
+axiom : AC
+rule : A->AB 
+rule : B->AC
+rule : C->BB
+counter: 20
 end
-
+st[5].result==ls[5].result
 ex = :(begin
 axiom: A
 rule: A->AB
