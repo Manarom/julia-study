@@ -1,10 +1,10 @@
 #Maintainability Patterns
 
 #=
-*Sub-module pattern
-*Keyword definition pattern
-*Code generation pattern
-*Domain-specific language pattern
+* Sub-module pattern
+* Keyword definition pattern
+* Code generation pattern
+* Domain-specific language pattern
 =#
 #-------------------------submodule patter-------------------------------------
 
