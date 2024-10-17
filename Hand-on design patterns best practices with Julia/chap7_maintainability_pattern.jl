@@ -246,11 +246,11 @@ end
 ls= LSYNTAX.@lsys begin
     axiom: AC
     rule: A->AB 
-    rule: B->AC
-    rule: C->BB
+    rule: B->C
+    rule: C->B
     counter: 20
 end
-ls[5]
+ls[15]
 
 
 st = LSYNTAX.@lsys2 begin
