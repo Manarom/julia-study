@@ -30,7 +30,7 @@ module A
         end 
         f_mod_cint() = begin 
             global c_int = 15
-            return f_(c_ int)
+            return f_(c_int)
         end  
         f_mod_const() = begin 
             global c_const[] = 15
