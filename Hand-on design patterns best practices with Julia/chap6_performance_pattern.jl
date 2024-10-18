@@ -47,4 +47,58 @@ module A
         return (b_c,b_cint,b_const,b_const2)
     end
 end
-# actually i dont see significant difference between const c and c_int 
+using BenchmarkTools
+for bench in A.f_mod(cos)
+    @show bench
+end
+
+var_glob = 10
+function add_using_global_var(x)
+    return x + var_glob
+end
+const global_const = 10
+function add_using_global_const(x)
+    return x+global_const
+end
+@benchmark add_using_global_var(90)
+@benchmark add_using_global_const(10)
+
+function modify_global_var()
+    global var_glob+=1
+    return var_glob
+end
+const var_gloab_ref = Ref(10)
+function modify_global_ref()
+    global var_gloab_ref[]+=1
+    return var_gloab_ref[]
+end
+@benchmark modify_global_var()
+@benchmark modify_global_ref()
+# use reference const to modify global variable
+
+# * STRUCT ARRAY PATTERN
+module B
+    using StructArrays,BenchmarkTools # creates struct-of-arrays - like behaviour from array of structs
+    struct A
+        a
+        b
+    end
+    a = [A(i,i) for i in 1:100]
+    @benchmark mean(a.a for a in a)
+    st = StructVector(a)
+    @benchmark StructVector(a)
+    @benchmark mean(a.a for a in st) # little faster
+
+    @benchmark [a.a for a in a ]
+    @benchmark st.a # this is much faster!!
+end
+# Base.summarysize - calculates all memory consumed by obj
+Base.summarysize(B.st)
+Base.summarysize(B.a)
+B.a = nothing
+Base.summarysize(B.st)
+Base.summarysize(B.a)
+Base.summarysize(2)
+
+
+# * SHARED ARRAY PATTERN
