@@ -102,3 +102,45 @@ Base.summarysize(2)
 
 
 # * SHARED ARRAY PATTERN
+module D # this module through running consumes 20 GB of disk space
+    using Distributed,SharedArrays
+    const wdir = raw"D:\temp"
+    function make_data_directories()
+        for i in 0:9
+            mkdir(joinpath(wdir,"$i"))
+        end
+    end
+    function locate_file(i)
+        id = i - 1
+        dir = joinpath(wdir,string(id % 10)) 
+        joinpath(dir, "sec$(id).dat")
+    end
+    function generate_test_data(nfiles)
+        for i in 1:nfiles
+            A = rand(1000, 3)
+            file = locate_file(i)
+            open(file, "w") do io
+                write(io, A)
+            end
+        end
+    end
+    function generate_initial_data()
+        make_data_directories()
+        generate_test_data(10000)
+    end
+    function load_data!(nfiles, dest)
+        @sync @distributed for i in 1:nfiles
+                    read_val_file!(i, dest)
+        end
+    end
+    @everywhere function read_val_file!(index, dest)
+        filename = locate_file(index)
+        (nstates, nattrs) = size(dest)[1:2]
+        open(filename) do io
+            nbytes = nstates * nattrs * 8
+            buffer = read(io, nbytes)
+            A = reinterpret(Float64, buffer)
+            dest[:, :, index] = A
+        end
+    end
+end
