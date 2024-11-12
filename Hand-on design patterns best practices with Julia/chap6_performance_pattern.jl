@@ -23,7 +23,7 @@ module A
         b_const2 = @benchmark($f_(c_const2[]))
         return (b_c,b_cint,b_const,b_const2)
     end
-    function f_mod(f_::Function) # version with modification modification of const is faster!
+    function f_mod(f_::Function) # version with modification  of const is faster!
         f_mod() = begin 
             global c = 15
             return f_(c)
@@ -112,12 +112,12 @@ module D # this module through running consumes 20 GB of disk space
     end
     function locate_file(i)
         id = i - 1
-        dir = joinpath(wdir,string(id % 10)) 
+        dir = joinpath(wdir,string(id % 10)) # ten files in each directory
         joinpath(dir, "sec$(id).dat")
     end
     function generate_test_data(nfiles)
         for i in 1:nfiles
-            A = rand(1000, 3)
+            A = rand(10000, 3)
             file = locate_file(i)
             open(file, "w") do io
                 write(io, A)
@@ -126,7 +126,7 @@ module D # this module through running consumes 20 GB of disk space
     end
     function generate_initial_data()
         make_data_directories()
-        generate_test_data(10000)
+        generate_test_data(100) # GENERATING 100 files in 10 dirs for 10 file per dir with 10000x3 data each
     end
     function load_data!(nfiles, dest)
         @sync @distributed for i in 1:nfiles
