@@ -16,7 +16,9 @@ the iterable object
 =#
 const a = rand(10)
 typeof(iterate(a))
-@show iterate(a) # returns the value of the tuple of (first element,  state )
+prev_state = 2 # previous state of iterator
+@show iterate(a,prev_state) # returns the value of the tuple of (first element,  state )
+# state - next iteration index
 iterate(a,3)
  f1()=begin
     for i in a
@@ -28,8 +30,8 @@ f2() = begin
     next= iterate(a) #next - tuple
     while next!== nothing
         (item,state) = next 
-        #@show state
-        next=iterate(a)
+        @show item
+        next=iterate(a,state) # next is a tuple or nothing
     end
 end
 
@@ -37,9 +39,9 @@ f3(a::Vector{Float64}) = begin
     next= iterate(a) 
     while next!== nothing
         
-        (item,state) = next
+        (_,state) = next
         #@show state
-        next=iterate(a)
+        next=iterate(a,state)
     end
 end
 # some functions accept the iterator obj as an input
@@ -56,6 +58,8 @@ for i in A(3,2) @show i end
 # to use in comprehentions we need length method
 Base.length(a::A)=a.counter
 b=[i for i in A(10,3)]
+# it is interesting that if eltype function is not implemented than collect returns vector of Any ?!
+#   collect(element_type, collection) - uses elfype function to obtain the element type of the collection
 collect(A(2,3))
 # after adding the element type this two benchmarks give the same timing
 @benchmark [i for i in A(10,3)]
@@ -80,12 +84,12 @@ Base.iterate(a::A,state=1) = state > a.counter ? nothing : (state^a.pow,state+1)
 Base.eltype(::A)=Float64 # this adds type to the first element of the iterate return tuple
 Base.length(a::A)=a.counter
 
-#= to implement collection like behaviour several methods should be implemented for a particular type
+#= to implement collection-like behaviour several methods should be implemented for a particular type
 
-getindex(X, i)	X[i], indexed element access
-setindex!(X, v, i)	X[i] = v, indexed assignment
-firstindex(X)	The first index, used in X[begin]
-lastindex(X)	The last index, used in X[end]
+        getindex(X, i)	X[i], indexed element access
+        setindex!(X, v, i)	X[i] = v, indexed assignment
+        firstindex(X)	The first index, used in X[begin]
+        lastindex(X)	The last index, used in X[end]
 =#
 Base.getindex(a::A,i) = iterate(a,i)[1] # this version is without out of bounds check
 A(4,6)[2]
@@ -112,9 +116,9 @@ struct A <:AbstractArray{Float64,1}
 end
 Base.size(a::A) = (a.counter,)
 Base.getindex(a::A,i::Int) = i<=a.counter ? i^a.pow : error("index mismatch")
-Base.getindex(a::A,i::Number) = a[convert(Int, i)]
-Base.eltype(::A)=Float64
-a = A(5,3.0)
+Base.getindex(a::A,i::Number) = a[convert(Int, i)] # adding possibility to have non-integer indexing
+Base.eltype(::A)=Float64 # element type
+a = A(5,3.0) # vector of five lements 
 a.*a
 A(4,2.0)[2:4]
 for a in A(4,2.0)
@@ -130,4 +134,5 @@ A(5,1.0)[A(5,1.0).>3]
 filter(i->isless(i,3.0),A(5,1.0))
 copy(A(5,2.0))
 A(5,1.0)[A(3,1.0)] #this works because we added non-integer indexing 
+Base.one(::A) = A(1,1)
 end
