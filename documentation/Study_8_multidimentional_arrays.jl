@@ -15,3 +15,7 @@ axes(rand(4,5,31)) # returns a tuple containing valid indices
 # stride(a,k) returns distance (in indices) between adjacent elements of dimention k
 stride(a,1)
 stride(rand(10,10,10),3)
+using LinearAlgebra
+A = rand(10,10)
+Q,R = qr(A)
+svd(A)
