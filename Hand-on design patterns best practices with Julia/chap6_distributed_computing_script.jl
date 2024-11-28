@@ -1,10 +1,21 @@
+
+# distributed computing script
+
 # to run this script one should:
 # start julia processed using command line `julia -p 6` , 6 is the number of julia processes
 # nworkers() - returns the number of workers
 # using SharedArrays, Distributed arrays
 # @everywhere include(this_script)
+# further fun this code in the REPL
 
-# distributed computing script
+#nfiles = 100
+#nstates = 10_000
+#nattr = 3
+#valuation = SharedArray{Float64}(nstates, nattr, nfiles)
+#load_data!(nfiles, valuation)
+
+
+
 
 nfiled=100;
 wdir=pwd();
