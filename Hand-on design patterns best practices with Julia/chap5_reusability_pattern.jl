@@ -53,7 +53,8 @@ function accrue_daily_interest!(sa::AccountWrapper)
     deposit!(sa.acct, interest)
 end
 
-# there is a macros called @forward in Lazy.jl package to implement this pattern without writing method 
+# there is a macros called @forward in Lazy.jl package to implement
+# this pattern without writing method 
 # forwarding by hands
 import Lazy:@forward
 @forward AccountWrapper.acc balance, account_number

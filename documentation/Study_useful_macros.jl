@@ -68,3 +68,6 @@ end
 @forward D_wrapper.d f # generates method f(x::CC) = f(x.d)
 @which f(D_wrapper(D(10)))
 
+using LaTeXStrings,Plots
+# this package introduces L_str macro to interpret LaTeX strings
+plot(sin,label=L"\frac{1}{2}\matrix{a_1&a_2\cr a_3 a_4} ")
