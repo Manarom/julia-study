@@ -18,6 +18,7 @@ using BenchmarkTools
 
 """
 
+using BenchmarkTools
 
 # ---------------------------------*Basic functions*------------------------------------------
 a=rand(10,10) # 
@@ -43,6 +44,8 @@ c[1][1]=100.0
 b2[1][1] # doesnt changed because 
 
 ## -------------------------*Construction and initialization*---------------------------
+d = Array{Float64}(undef,10,20,20)
+ы=Vector{Float64}(undef,10)
 # zeros, ones, trues, falses
 a = zeros(Union{Missing,T} where T<:Real,10)
 a[2]=10.0
@@ -102,7 +105,7 @@ d = Any[1, 3.0,1//3]
 [rand(2,3);;;rand(2,3)]
 [1:2; 4;; 1; 3:4]
 
-#---------------------------------*Comprehentions*-------------------------------------
+#-------------------*Comprehentions*-----------------------------------------------------
 # A = [ F(x, y, ...) for x=rx, y=ry, ... ] - general syntax
 a = 1:1000
 @benchmark [i for i in $a]
@@ -114,12 +117,179 @@ Float64[i for i in a]
 #----------------------*Generator expressions*------------------------------------------
 # comprehentions without literals
 a = 1:1000
-@benchmark sum(i for i in $a)
-@benchmark sum([i for i in $a])
-@which sum(i for i in a)
-@which sum([i for i in a])
+@benchmark sum(i for i in $a) # sends generator to the sum function
+@benchmark sum([i for i in $a]) # creates array and than sends it to the sum function
+@which sum(i for i in a) # calls special version of sum function 
+@which sum([i for i in a])# call array-inout version of sum function
 @code_warntype sum(i for i in a)
+mapreduce(identity,(t1,t2)->+(Float64(t1),Float64(t2)), i for i in a)
 
+#-------------------------------*Indexing*----------------------------------------------
+A = reshape(collect(1:16), (2, 2, 2, 2))
+A[2,[1 2],1,[1 2]]
+
+#-------------------------------*Indexing assignment*-----------------------------------
+a= rand(5)
+# assignment calls type convertion 
+a[2:4]=[2 3 4] # here right - Int64, left - vector of Float64
+a
+A = rand(2,3)
+for i in CartesianIndices(A)
+    @show i
+ end
+typeof(CartesianIndices(A))
+supertype(ans)
+CartesianIndex{2}((2,2))
+iter = CartesianIndices(A)
+# CartesianIndices acts like an array of CartesianIndex elements (N-tuple of integers)
+# there are several basic operations are applcable to the CartesianIndex
+typeof(iter[1,2])
+methodswith(CartesianIndex)
+fieldnames(CartesianIndices)
+iter.indices
+i1 = iter[1,3]
+i2=iter[2,1]
+i2>i1
+min(i2,i1)
+# CartesianIndices usage example
+function sum_dim(A::Array{T,K},dim) where {K, T}
+    #summation along dim'th dimention
+    # A - matrix [M,N,K]
+    sz  = [size(A)...]
+    sz[dim]=1
+    B=Matrix{T}(undef,sz...) # matrix [M,1,K]
+    Bmax = last(CartesianIndices(B)) #the same as CartesianIndex(size(B))
+    for I in CartesianIndices(A)
+        B[min(Bmax,I)] += A[I] # min(Bmax,I) - returns (m,1,k)
+    end
+    return B
+end
+
+sum_dim(rand(10,10,10),3)
+@code_warntype sum_dim(rand(10,10,10),3) # this version of functions is type unstable
+a=rand(3,4,5,6)
+typeof(eachindex(a))
+f_each(a) = begin 
+    s = 0.0
+    for i in eachindex(a) # effective iterator along each index
+        s+=a[i]
+    end
+    return s
+end
+f_cart(a)=begin 
+    s = 0.0
+    for i in CartesianIndices(a)
+        s+=a[i]
+    end
+    return s
+end
+f_direct_iter(a)=begin
+    s = 0.0
+    for i in a 
+        s+=i
+    end
+    return s
+end
+using BenchmarkTools
+@benchmark f_each($a)
+@benchmark f_cart($a)
+@benchmark  f_direct_iter($a)
+# eachindex is faster than CartesianIndices, but direct iteration is faster
+# the sum via the iterator is
+@benchmark  sum(i for i in $a)
+#has the same speed as direct iteration
+
+#Logical Indexing
+a=rand(100,200)
+
+f_find(a)=begin # find indices and gather a elements
+    return a[findall(a.>0.5)]
+end
+f_find(a)
+
+f_direct(a)=begin #direct logical indexing
+    return a[a.>0.5]
+end
+f_direct(a)
+
+f_filter(a)=begin
+    return filter(t->t>0.5,a)
+end
+f_filter(a)
+
+f_push(a::AbstractArray{T}) where T =begin
+    b=Vector{T}(undef,0)
+    for i in a 
+        if i>0.5
+            push!(b,i)
+        end
+    end
+    return b
+end
+f_push(a)
+
+@benchmark f_find(a)
+@benchmark f_direct(a)
+@benchmark f_filter(a)
+@benchmark f_push(a)
+# boolean indexing has the same speed as filter, it is interesting that push! is actually
+# faster than findall...
+# vec - function 
+# if dimention is one it index can be omitted if there is only one possible value for those omitted 
+a = rand(1,5,5,1)
+a[1,4,4]
+# there also all index a[] - return all indices
+a = rand()
+a[]
+
+
+#-----------------------*Array traits-------------------------
+# if MyArray<:AbstractArray - self made type with AbstractArray superype
+# the Base.IndexStyle if it is set to IndexLinear eachindex returns int64,
+# otherwise it returns CartesianIndex
+# Base.IndexStyle(::Type{<:MyArray}) = IndexLinear()
+struct my_array_linear{T,N}<:AbstractArray{T,N} 
+    a::Vector{T}
+end
+Base.IndexStyle(::Type{<:my_array_linear}) = IndexLinear() 
+Base.size(::my_array_linear{T,N}) where {T,N}= N
+struct my_array_cart{T,N}<:AbstractArray{T,N} 
+    a::Vector{T}
+end
+Base.IndexStyle(::my_array_cart) = IndexCartesian()
+Base.size(::my_array_cart{T,N}) where {T,N}= N
+
+m_lin = my_array_linear{Float64,1}(rand(10))
+typeof(eachindex(m_lin))
+size(m_lin)
+m_car = my_array_cart{Float64,1}(rand(10))
+typeof(eachindex(m_car))
+#----------------------*Iteration------------------------------
+# recommended ways to iterate over the whole collection
+# for i in eachindex(A) OR for a in A 
+
+#-------*arrays and vectorized operators and functions-----------
+a = rand(10,30,50)
+f(x)=sin(cos(x))
+b = copy(a)
+c = copy(a)
+f_bench(a,b,f)= @. b=f(a)
+f_b2(a,b,f) = begin
+    for i in eachindex(a)
+        b[i] = f(a[i])
+    end
+    #return b
+end
+@benchmark f_bench($a,$b,$f)
+@benchmark f_b2($a,$b,$f)
+# the performance is practically the same (f_b2 is faster if no return is used)
+a= reshape(1:20,(2,10))
+b = [99,99]
+b.*a
+# broadcasting over common dimention
+c = rand(2,2)
+c.*a
+# dot operations FUSE!
 stride(c,2)
 stride(rand(10,10,10),3)
 using LinearAlgebra
@@ -127,7 +297,3 @@ A = rand(10,10)
 Q,R = qr(A)
 svd(A)
 
-typeof(eachindex(a))
-for i in eachindex(a) # effective iterator along each index
-    @show i
-end

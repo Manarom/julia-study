@@ -70,4 +70,14 @@ end
 
 using LaTeXStrings,Plots
 # this package introduces L_str macro to interpret LaTeX strings
-plot(sin,label=L"\frac{1}{2}\matrix{a_1&a_2\cr a_3 a_4} ")
+plot(sin,label=L"""\frac{1}{2}\matrix{a_1&a_2\cr a_3 a_4} """)
+
+# macro to check the bounds for indexing
+function g(A, i)
+    @boundscheck checkbounds(A, i) # this macro annotates the following block 
+    return "accessing ($A)[$i]"
+end
+f1()=g(rand(5),9)
+f2()=@inbounds g(rand(5),9)
+f1()
+f2() # this function ignores boundcheck block
