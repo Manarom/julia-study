@@ -228,10 +228,10 @@ f_push(a::AbstractArray{T}) where T =begin
 end
 f_push(a)
 
-@benchmark f_find(a)
-@benchmark f_direct(a)
-@benchmark f_filter(a)
-@benchmark f_push(a)
+@btime f_find(a)
+@btime f_direct(a)
+@btime f_filter(a)
+@btime f_push(a)
 # boolean indexing has the same speed as filter, it is interesting that push! is actually
 # faster than findall...
 # vec - function 
@@ -290,10 +290,22 @@ b.*a
 c = rand(2,2)
 c.*a
 # dot operations FUSE!
+x = rand(1000)
+# this calls are equal performance
+@btime f.($x)
+@btime sin.(cos.($x))
+# stride returns distance between twoo adjacent elements ub dimention k
+c = rand(10,20)
 stride(c,2)
 stride(rand(10,10,10),3)
-using LinearAlgebra
+using LinearAlgebra, MKL
 A = rand(10,10)
 Q,R = qr(A)
 svd(A)
+@benchmark svd($A)
+strides(A)
 
+# implementing AvstractArray abstract class
+# immutable arrays should implement at least 
+# size, getindex(A,i) and getindex(A,i1,...,iN)
+# mutable arrays should implement setindex!(A,i)
