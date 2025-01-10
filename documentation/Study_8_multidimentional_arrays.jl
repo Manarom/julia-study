@@ -55,21 +55,6 @@ b = reinterpret(Float64,[1 2 3])
 c = similar(a)
 c[1] # similar returns uninitialized copy
 c[1]=missing
-# difference between undef, missing and nothing
-@show typeof(missing) typeof(nothing) typeof(undef)
-begin
-    @show undef==undef
-    @show undef===undef
-    @show missing==missing
-    @show missing===missing
-    @show nothing==nothing
-    @show nothing===nothing
-end # they all are singletones, == with missing returns missing
-@show 3*missing # gives missing 
-3*nothing # gives error
-3*undef # gives error
-## missing propagates without error through the operations
-
 # ranges
 r =range(1,10)
 o=Base.OneTo(10)

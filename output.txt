@@ -1,0 +1,15 @@
+Status `C:\Users\user\.julia\environments\v1.11\Project.toml`
+  [6e4b80f9] BenchmarkTools v1.6.0
+  [a98d9a8b] Interpolations v0.15.1
+  [b964fa9f] LaTeXStrings v1.4.0
+  [50d2b5c4] Lazy v0.15.1
+  [3db4a2ba] LegendrePolynomials v0.4.5
+  [33e6dc65] MKL v0.7.0
+  [e1d29d7a] Missings v1.2.0
+  [7f7a1694] Optimization v4.0.5
+  [36348300] OptimizationOptimJL v0.4.1
+  [91a5bcdd] Plots v1.40.9
+  [c3e4b0f8] Pluto v0.20.4
+  [7f904dfe] PlutoUI v0.7.60
+  [f27b6e38] Polynomials v4.0.12
+  [90137ffa] StaticArrays v1.9.10

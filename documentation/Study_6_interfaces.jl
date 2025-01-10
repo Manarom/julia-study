@@ -97,8 +97,11 @@ struct B
     counter::Int
     pow::Float64
 end
-Base.getindex(a::B,i) = i<=a.counter ? i^a.pow : error("out of bounds")
+Base.getindex(a::B,i=1) = i<=a.counter ? i^a.pow : error("out of bounds")
 B(4,6)[2]
+ b= B(10,2)
+b[] 
+
 
 @benchmark A(4,6)[2]
 @benchmark B(4,6)[2]
@@ -110,6 +113,7 @@ end
 # This module implements AbstractArray abstract class
 module study_abstract_array
 using BenchmarkTools
+Vector
 struct A <:AbstractArray{Float64,1}
     counter::Int
     pow::Float64
