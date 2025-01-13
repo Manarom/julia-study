@@ -78,6 +78,17 @@ end
 close(out_file)
 #----------------*A simple TCP example*---------------
 using Sockets
+#errormonitor - function gathers the error from async task 
+@async begin
+    a = rand(10)
+    a[11,11]
+end
+
+errormonitor(@async begin
+    a = rand(10)
+    a[11,11]
+end)
+
 
 errormonitor(@async begin
     server=listen(2000)
@@ -96,8 +107,8 @@ t1 = errormonitor(@async begin
     while !stop_server
         sock=accept(server)
         @async while isopen(sock)&& !stop_server
-            line = readline(sock,keep=true)
-            write(sock,line)
+            line = readline(sock,keep=false)
+            write(sock,"server_writes"*line)
             if contains(line,"stop_server")
                 error("stop server")
             end
