@@ -101,14 +101,16 @@ connect(2000)
 #connecting to the server
 
 # creating echo server:
+using Sockets
 t1 = errormonitor(@async begin
     server=listen(2001) # next port 
     stop_server = false
     while !stop_server
         sock=accept(server)
+        sleep(1E-10)
         @async while isopen(sock)&& !stop_server
-            line = readline(sock,keep=false)
-            write(sock,"server_writes"*line)
+            line = readline(sock,keep=true)
+            write(sock,"server_writes: "*line)
             if contains(line,"stop_server")
                 error("stop server")
             end
