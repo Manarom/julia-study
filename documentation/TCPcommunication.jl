@@ -1,4 +1,5 @@
 module TCPcommunication
+    export start_server,tcp_server 
     using Sockets
     ForN   = Union{Function,Nothing}
     Base.@kwdef mutable struct tcp_port
@@ -16,30 +17,46 @@ module TCPcommunication
         commands::Dict{AbstractString,Function} # this dictionary stores special keywords to manipulate the server
         on_reading::ForN # every reading callback
     end
+    """
+    Structure to store the server object
+    fields:
+                connection - tcp connection settings
+                server - TCPserver object
+                clients_streams - clients io Streams
 
-    mutable struct tcp_server
+    """
+    Base.@kwdef mutable struct tcp_server
         connection::tcp_connection
         server::Sockets.TCPServer
-        stream::IO # stream object is created on calling listen
-        task::Task # @async task created right after port connection
-        tcp_server(connection::tcp_connection)=begin 
-            server = listen(connection.port.ip,connection.port.port)
-            
-            new_tcp_server = new(connection,server,stdout,Task([]))
-            new_tcp_server.task = errormonitor(@async begin
-                new_tcp_server.stream = accept(server)
-                sleep(1E-10)
-                new_tcp_server.task = @async while isopen(new_tcp_server.stream )
-                    line = readline(new_tcp_server.stream ,keep=true)
-                    write(new_tcp_server.stream ,"server_writes"*line)
-                end
-            end)
-            return new_tcp_server
-        end
+        task::Task=Task([]) # @async task created right after port connection
+        shut_down_server::Bool =false# flag to shut down the server
+        clients_list::Dict{Int,TCPSocket}=Dict{Int,TCPSocket}()
+        room_lock=ReentrantLock()
     end
-    function start_server(;
+    function tcp_server(connection::tcp_connection)
+        @info "Server started listening" connection.port.ip connection.port.port
+        serv = tcp_server(connection=connection,
+                            server=listen(connection.port.ip,connection.port.port)
+        )
+        serv.task=errormonitor(@async accept_client_loop(serv))
+        return serv
+    end
+    function accept_client_loop(serv::tcp_server)
+        # new client connection
+        while !serv.shut_down_server
+            client = accept(serv.server)# accept function waits for  connection of  client
+            peername = Sockets.getpeername(client) # returns clients ip and port address
+            client_ip_address = peername[1]
+            client_port_number = Int(peername[2])
+            @info "Socket accepted" client_ip_address client_port_number
+            #lock(serv.room_lock) do
+            serv.clients_list[client_port_number]=client
+            errormonitor(@async client_message_handler(serv,client))
+        end
+        close(serv.server)
+    end
+    function start_server(;port::Int,
         ip::String="localhost",
-        port::Int, 
         on_connection::ForN=nothing,
         on_reading::ForN=nothing,
         commands::Dict{AbstractString,Function}=Dict{AbstractString,Function}())
@@ -50,31 +67,30 @@ module TCPcommunication
                     commands=commands)    
         return tcp_server(port_con)
     end
-#=    SERVER FROM THE EXAMPLE:
-        t1 = errormonitor(@async begin
-        server=listen(2001) # next port 
-        stop_server = false
-        while !stop_server
-            sock=accept(server)
-            @async while isopen(sock)&& !stop_server
-                line = readline(sock,keep=true)
-                write(sock,"server_writes"*line)
-                if contains(line,"stop_server")
-                    error("stop server")
-                end
-            end
+    function client_message_handler(serv::tcp_server,socket)
+        # function to handle client message
+        # tcp_server - object
+        # socket - client connection 
+        while isopen(socket)
+            line = readline(socket ,keep=true)
+            try_write(socket ,"server_writes"*line)
         end
-    end) 
-    # CLIENT FROM THE EXAMPLE
-        client_side = connect(2001)
-        t2 = errormonitor(
-            @async while isopen(client_side)
-                write(stdout,readline(client_side,keep=true))
-            end
-        )   
-    =#
+        @info "Client closed" Sockets.getpeername(socket)
+    end
+    function try_write(socket, message)
+        try
+            println(socket, message)
+        catch error
+            @error error
+            close(socket)
+        end
+    
+        return nothing
+    end
 end
+using .TCPcommunication
 
+s = start_server(port=2020)
 mutable struct A
     a::Float64
 end
@@ -96,3 +112,7 @@ end
         a[i].a=a[i].a+ i
     end
 end
+
+ ⬚(a::Int...) = begin
+    sum(length(string(i)) - 2*count("0",string(i)) for i in a) 
+ end
