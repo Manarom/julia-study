@@ -1,3 +1,5 @@
+
+
 # chapter 3 (julia basics designing functions and interfaces)
 
 #do syntax for functions accepting other function as the first argument

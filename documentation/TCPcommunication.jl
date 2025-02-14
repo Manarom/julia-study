@@ -1,7 +1,10 @@
+# simple module to study the TCP communication
+# after running this script is starts the servet at localhost (by default - on DEFAULT_PORT) 
+const DEFAULT_PORT=2000
 module TCPcommunication
     export start_server,tcp_server 
     using Sockets
-    ForN   = Union{Function,Nothing}
+    ForN   = Union{Function,Nothing} # need this type to 
     Base.@kwdef mutable struct tcp_port
         # basic port object connects ip address and port in one structure
         ip::IPAddr=getaddrinfo("localhost", IPv4)
@@ -13,8 +16,8 @@ module TCPcommunication
     # Thing common for both server and client
     Base.@kwdef mutable struct tcp_connection
         port::tcp_port # port properties
-        on_connection::ForN # on connection callback 
-        commands::Dict{AbstractString,Function} # this dictionary stores special keywords to manipulate the server
+        on_connection::ForN # on client connection callback 
+        commands::Dict{AbstractString,Function} # this dictionary stores special keywords to be called when message recieving
         on_reading::ForN # every reading callback
     end
     """
@@ -60,7 +63,7 @@ module TCPcommunication
         on_connection::ForN=nothing,
         on_reading::ForN=nothing,
         commands::Dict{AbstractString,Function}=Dict{AbstractString,Function}())
-        port_obj = tcp_port(port=port,ip = ip)
+        port_obj = tcp_port(port=port,ip = ip) # creating tcp port object
         port_con=tcp_connection(port=port_obj,
                     on_connection=on_connection,
                     on_reading=on_reading,
@@ -72,17 +75,30 @@ module TCPcommunication
         # tcp_server - object
         # socket - client connection 
         while isopen(socket)
-            line = readline(socket ,keep=true)
-            try_write(socket ,"server_writes"*line)
+            (is_ok,line) = try_readline(socket)
+            if !is_ok
+                close(socket)
+                break
+            end
+            try_write(socket ,"server echoes "*line)
         end
         @info "Client closed" Sockets.getpeername(socket)
+    end
+    function try_readline(socket)
+        try
+            return (true,readline(socket,keep=true))
+        catch 
+            return (false, "unable to read")
+        end
     end
     function try_write(socket, message)
         try
             println(socket, message)
+            return true
         catch error
-            @error error
+            #@error error
             close(socket)
+            return false
         end
     
         return nothing
@@ -90,29 +106,4 @@ module TCPcommunication
 end
 using .TCPcommunication
 
-s = start_server(port=2020)
-mutable struct A
-    a::Float64
-end
-using BenchmarkTools
-a = [A(a) for a in zeros(10)]
-@benchmark for i in 1:10
-    @async begin
-        a[i].a=a[i].a+ i
-    end
-end
-a
-@benchmark for i in 1:10
-    begin
-        a[i].a=a[i].a+ i
-    end
-end
-@benchmark Threads.@spawn for i in 1:10
-    begin
-        a[i].a=a[i].a+ i
-    end
-end
-
- ⬚(a::Int...) = begin
-    sum(length(string(i)) - 2*count("0",string(i)) for i in a) 
- end
+s = start_server(port=DEFAULT_PORT)
