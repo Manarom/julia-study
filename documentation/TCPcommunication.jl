@@ -17,7 +17,7 @@ module TCPcommunication
     Base.@kwdef mutable struct tcp_connection
         port::tcp_port # port properties
         on_connection::ForN # on client connection callback 
-        commands::Dict{AbstractString,Function} # this dictionary stores special keywords to be called when message recieving
+        commands::Dict{String,Function} # this dictionary stores special keywords to be called when message recieving
         on_reading::ForN # every reading callback
     end
     """
@@ -52,8 +52,9 @@ module TCPcommunication
             client_ip_address = peername[1]
             client_port_number = Int(peername[2])
             @info "Socket accepted" client_ip_address client_port_number
-            #lock(serv.room_lock) do
-            serv.clients_list[client_port_number]=client
+            lock(serv.room_lock) do # need to lock the client base
+                serv.clients_list[client_port_number]=client
+            end
             errormonitor(@async client_message_handler(serv,client))
         end
         close(serv.server)
@@ -62,7 +63,7 @@ module TCPcommunication
         ip::String="localhost",
         on_connection::ForN=nothing,
         on_reading::ForN=nothing,
-        commands::Dict{AbstractString,Function}=Dict{AbstractString,Function}())
+        commands::Dict{String,Function}=Dict{String,Function}())
         port_obj = tcp_port(port=port,ip = ip) # creating tcp port object
         port_con=tcp_connection(port=port_obj,
                     on_connection=on_connection,
@@ -70,23 +71,49 @@ module TCPcommunication
                     commands=commands)    
         return tcp_server(port_con)
     end
+#-------------------------------------
+#=
+block from HTTP Servers
+    elseif reuseaddr
+        if !supportsreuseaddr()
+            @warn "reuseaddr=true not supported on this platform: $(Sys.KERNEL)"
+            @goto fallback
+        end
+        server = Sockets.TCPServer(delay = false)
+        rc = ccall(:jl_tcp_reuseport, Int32, (Ptr{Cvoid},), server.handle)
+        if rc < 0
+            close(server)
+            @warn "reuseaddr=true failed; falling back to regular listen: $(Sys.KERNEL)"
+            @goto fallback
+        end
+        Sockets.bind(server, addr.host, addr.port; reuseaddr=true)
+        Sockets.listen(server; backlog=backlog)
+=#
+#-------------------------------------
     function client_message_handler(serv::tcp_server,socket)
         # function to handle client message
         # tcp_server - object
         # socket - client connection 
-        while isopen(socket)
+        while !serv.shut_down_server && isopen(socket)
             (is_ok,line) = try_readline(socket)
             if !is_ok
-                close(socket)
                 break
             end
-            try_write(socket ,"server echoes "*line)
+            @info "Client writes" Sockets.getpeername(socket)  line
+            if haskey(serv.connection.commands,line)
+                @info "Operation command recieved" line
+                serv.connection.commands[line](serv,socket)
+            end
+            if !try_write(socket ,"server echoes "*line)
+                break
+            end 
         end
         @info "Client closed" Sockets.getpeername(socket)
+        close(socket)
     end
     function try_readline(socket)
         try
-            return (true,readline(socket,keep=true))
+            return (true,readline(socket,keep=false))
         catch 
             return (false, "unable to read")
         end
@@ -104,6 +131,20 @@ module TCPcommunication
         return nothing
     end
 end
-using .TCPcommunication
+using .TCPcommunication,Sockets
 
-s = start_server(port=DEFAULT_PORT)
+function get_port_names(serv::tcp_server,sock::TCPSocket)
+    line =reduce(*,string(i[1]) for i in serv.clients_list)
+    write(sock,line)
+end
+function stop_server(serv::tcp_server,::TCPSocket)
+    serv.shut_down_server=true
+end
+D = Dict("get_port_names"=>get_port_names,"stop_server"=>stop_server)
+s = start_server(port=DEFAULT_PORT,commands = D)
+
+
+#server = Sockets.TCPServer(delay = false)
+#server.handle
+
+#rc = ccall(:jl_tcp_reuseport, Int32, (Ptr{Cvoid},), server.handle)
