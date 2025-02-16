@@ -4,7 +4,7 @@ const DEFAULT_PORT=2000
 module TCPcommunication
     export start_server,tcp_server 
     using Sockets
-    ForN   = Union{Function,Nothing} # need this type to 
+    ForN   = Union{Function,Nothing} # function or nothing type for server starting function call
     Base.@kwdef mutable struct tcp_port
         # basic port object connects ip address and port in one structure
         ip::IPAddr=getaddrinfo("localhost", IPv4)
@@ -44,21 +44,29 @@ module TCPcommunication
         serv.task=errormonitor(@async accept_client_loop(serv))
         return serv
     end
+    """
+        Function for async task right after server started
+    """
     function accept_client_loop(serv::tcp_server)
         # new client connection
         while !serv.shut_down_server
-            client = accept(serv.server)# accept function waits for  connection of  client
+            client = accept(serv.server)# accept function waits for  connection of  client returns TCPsocket
             peername = Sockets.getpeername(client) # returns clients ip and port address
             client_ip_address = peername[1]
             client_port_number = Int(peername[2])
             @info "Socket accepted" client_ip_address client_port_number
-            lock(serv.room_lock) do # need to lock the client base
-                serv.clients_list[client_port_number]=client
-            end
+            add_client(serv,client)   
             errormonitor(@async client_message_handler(serv,client))
         end
-        close(serv.server)
+        tcp_server_shutdown(serv)
     end
+    # server shutting down function
+    function tcp_server_shutdown(serv::tcp_server)
+        close(serv.server) # should be replaced with shutting down task
+    end
+    """
+    Starts new server and returns its handle
+    """
     function start_server(;port::Int,
         ip::String="localhost",
         on_connection::ForN=nothing,
@@ -73,7 +81,7 @@ module TCPcommunication
     end
 #-------------------------------------
 #=
-block from HTTP Servers
+EXAMPLE from HTTP package Servers module
     elseif reuseaddr
         if !supportsreuseaddr()
             @warn "reuseaddr=true not supported on this platform: $(Sys.KERNEL)"
@@ -90,7 +98,10 @@ block from HTTP Servers
         Sockets.listen(server; backlog=backlog)
 =#
 #-------------------------------------
-
+        """
+        Function to elaborate the client message (must be started as async task from the 
+        main server  workflow after getting clietn socket through the accept function)
+        """
     function client_message_handler(serv::tcp_server,socket)
         # function to handle client message
         # tcp_server - object
@@ -109,8 +120,8 @@ block from HTTP Servers
                 break
             end 
         end
+        remove_client(serv,socket)
         @info "Client closed" Sockets.getpeername(socket)
-        close(socket)
     end
     function try_readline(socket)
         try
@@ -118,6 +129,41 @@ block from HTTP Servers
         catch 
             return (false, "unable to read")
         end
+    end
+    """
+    Adds client to the servers client base
+    """
+    function add_client(serv::tcp_server,client::TCPSocket)
+        lock(serv.room_lock) do # need to lock the client base
+            (port,) = get_socket_port(client)
+            serv.clients_list[port]=client
+        end
+        @info "client added to the clientbase with " port
+    end
+    function remove_client(serv,client::TCPSocket)
+        close(client)
+        remove_client(serv,client_port_number(client)[1])
+    end
+    function remove_client(serv::tcp_server,client_port::Int)
+        
+        if !haskey(serv.clients_list,client_port)
+            return
+        end
+        lock(serv.room_lock) do # need to lock the client base
+            delete!(serv.clients_list,client_port)
+        end
+        @info "client added to the clientbase with " port
+    end
+    """
+        Closes socket and removes it from the connections dictionary of the server object
+
+    """
+    function close_socket(socket::TCPSocket)
+            close(socket)
+    end
+    function get_socket_port(socket::TCPSocket)
+        (socket_ip_address, socket_port_number)= Sockets.getpeername(socket) # returns clients ip and port address
+         return (Int(socket_port_number),socket_ip_address)
     end
     function try_write(socket, message)
         try
