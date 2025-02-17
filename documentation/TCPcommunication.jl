@@ -62,6 +62,10 @@ module TCPcommunication
     end
     # server shutting down function
     function tcp_server_shutdown(serv::tcp_server)
+        # remove all connections!
+        for c in serv.clients_list
+            remove_client(serv,c[1])
+        end
         close(serv.server) # should be replaced with shutting down task
     end
     """
@@ -100,9 +104,9 @@ EXAMPLE from HTTP package Servers module
 #-------------------------------------
         """
         Function to elaborate the client message (must be started as async task from the 
-        main server  workflow after getting clietn socket through the accept function)
+        main server  workflow after getting client socket through the accept function)
         """
-    function client_message_handler(serv::tcp_server,socket)
+    function client_message_handler(serv::tcp_server,socket::TCPSocket)
         # function to handle client message
         # tcp_server - object
         # socket - client connection 
@@ -121,7 +125,7 @@ EXAMPLE from HTTP package Servers module
             end 
         end
         remove_client(serv,socket)
-        @info "Client closed" Sockets.getpeername(socket)
+        @info "Client closed" Sockets.getpeername(socket) socket.status
     end
     function try_readline(socket)
         try
@@ -134,15 +138,14 @@ EXAMPLE from HTTP package Servers module
     Adds client to the servers client base
     """
     function add_client(serv::tcp_server,client::TCPSocket)
+        (port,) = get_socket_port(client)
         lock(serv.room_lock) do # need to lock the client base
-            (port,) = get_socket_port(client)
             serv.clients_list[port]=client
         end
         @info "client added to the clientbase with " port
     end
     function remove_client(serv,client::TCPSocket)
-        close(client)
-        remove_client(serv,client_port_number(client)[1])
+        remove_client(serv,get_socket_port(client)[1])
     end
     function remove_client(serv::tcp_server,client_port::Int)
         
@@ -150,21 +153,21 @@ EXAMPLE from HTTP package Servers module
             return
         end
         lock(serv.room_lock) do # need to lock the client base
-            delete!(serv.clients_list,client_port)
+            client= pop!(serv.clients_list,client_port)
+            if isopen(client)
+                close(client)
+            end
         end
-        @info "client added to the clientbase with " port
+        @info "client removed from server clientbase " client_port
     end
     """
-        Closes socket and removes it from the connections dictionary of the server object
-
+    Returns the tuple of integer  port number and ip address string
     """
-    function close_socket(socket::TCPSocket)
-            close(socket)
-    end
     function get_socket_port(socket::TCPSocket)
         (socket_ip_address, socket_port_number)= Sockets.getpeername(socket) # returns clients ip and port address
          return (Int(socket_port_number),socket_ip_address)
     end
+    
     function try_write(socket, message)
         try
             println(socket, message)

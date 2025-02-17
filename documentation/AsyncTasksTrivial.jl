@@ -3,23 +3,21 @@ mutable struct A
 end
 using BenchmarkTools
 a = [A(a) for a in zeros(10)]
-@benchmark for i in 1:10
-    @async begin
-        a[i].a=a[i].a+ i
-    end
+@benchmark @async for i in 1:10
+        a[i].a=a[i].a+ 1
 end
 a
+a = [A(a) for a in zeros(10)]
 @benchmark for i in 1:10
-    begin
-        a[i].a=a[i].a+ i
-    end
+        a[i].a=a[i].a+ 1
 end
-@benchmark Threads.@spawn for i in 1:10
-    begin
-        a[i].a=a[i].a+ i
-    end
-end
+a
 
+a = [A(a) for a in zeros(10)]
+@benchmark Threads.@spawn for i in 1:10
+        a[i].a=a[i].a+ 1
+end
+a
  ⬚(a::Int...) = begin
     sum(length(string(i)) - 2*count("0",string(i)) for i in a) 
  end
