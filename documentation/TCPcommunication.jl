@@ -4,7 +4,7 @@ const DEFAULT_PORT=2000
 module TCPcommunication
     export start_server,tcp_server 
     using Sockets
-    ForN   = Union{Function,Nothing} # function or nothing type for server starting function call
+    const ForN   = Union{Function,Nothing} # function or nothing type for server starting function call
     Base.@kwdef mutable struct tcp_port
         # basic port object connects ip address and port in one structure
         ip::IPAddr=getaddrinfo("localhost", IPv4)
@@ -110,7 +110,7 @@ EXAMPLE from HTTP package Servers module
         # function to handle client message
         # tcp_server - object
         # socket - client connection 
-        while !serv.shut_down_server && isopen(socket)
+        while !serv.shut_down_server && isopen(socket) && isreadable(socket)
             (is_ok,line) = try_readline(socket)
             if !is_ok
                 break
@@ -154,7 +154,7 @@ EXAMPLE from HTTP package Servers module
         end
         lock(serv.room_lock) do # need to lock the client base
             client= pop!(serv.clients_list,client_port)
-            if isopen(client)
+            if isopen(client) | !isreadable(sock)
                 close(client)
             end
         end
@@ -190,7 +190,7 @@ end
 function stop_server(serv::tcp_server,::TCPSocket)
     serv.shut_down_server=true
 end
-D = Dict("get_port_names"=>get_port_names,"stop_server"=>stop_server)
+global D = Dict("get_port_names"=>get_port_names,"stop_server"=>stop_server)
 s = start_server(port=DEFAULT_PORT,commands = D)
 
 
