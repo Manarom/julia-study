@@ -63,8 +63,9 @@ module TCPcommunication
     # server shutting down function
     function tcp_server_shutdown(serv::tcp_server)
         # remove all connections!
-        for c in serv.clients_list
-            remove_client(serv,c[1])
+        list_of_clients = keys(serv.clients_list)
+        for c in list_of_clients
+            remove_client(serv,c)
         end
         close(serv.server) # should be replaced with shutting down task
     end
@@ -124,8 +125,12 @@ EXAMPLE from HTTP package Servers module
                 break
             end 
         end
-        remove_client(serv,socket)
-        @info "Client closed" Sockets.getpeername(socket) socket.status
+        port = findfirst(s->s==socket,serv.clients_list)
+        if !isnothing(port)
+            remove_client(serv,port)
+            @info "Client closed" port socket.status
+        end
+        
     end
     function try_readline(socket)
         try
@@ -154,7 +159,7 @@ EXAMPLE from HTTP package Servers module
         end
         lock(serv.room_lock) do # need to lock the client base
             client= pop!(serv.clients_list,client_port)
-            if isopen(client) | !isreadable(sock)
+            if isopen(client) || !isreadable(client)
                 close(client)
             end
         end
@@ -190,8 +195,8 @@ end
 function stop_server(serv::tcp_server,::TCPSocket)
     serv.shut_down_server=true
 end
-global D = Dict("get_port_names"=>get_port_names,"stop_server"=>stop_server)
-s = start_server(port=DEFAULT_PORT,commands = D)
+ D = Dict("get_port_names"=>get_port_names,"stop_server"=>stop_server)
+ s = start_server(port=DEFAULT_PORT,commands = D)
 
 
 #server = Sockets.TCPServer(delay = false)
