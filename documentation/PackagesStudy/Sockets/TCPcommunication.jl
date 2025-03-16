@@ -2,7 +2,7 @@
 # after running this script is starts the servet at localhost (by default - on DEFAULT_PORT) 
 const DEFAULT_PORT=2000
 module TCPcommunication
-    export start_server,tcp_server 
+    export start_server,tcp_server,try_write,try_readline 
     using Sockets
     const ForN   = Union{Function,Nothing} # function or nothing type for server starting function call
     Base.@kwdef mutable struct tcp_port
@@ -120,6 +120,7 @@ EXAMPLE from HTTP package Servers module
             if haskey(serv.connection.commands,line)
                 @info "Operation command recieved" line
                 serv.connection.commands[line](serv,socket)
+                continue
             end
             if !try_write(socket ,"server echoes "*line)
                 break
@@ -186,16 +187,51 @@ EXAMPLE from HTTP package Servers module
         return nothing
     end
 end
-using .TCPcommunication,Sockets
+using .TCPcommunication,Sockets,JSON3,StructTypes
 
-function get_port_names(serv::tcp_server,sock::TCPSocket)
-    line =reduce(*,string(i[1]) for i in serv.clients_list)
-    write(sock,line)
+# JSON3 package allows to read to the struct, this struct is to check this
+mutable struct InstrumentState
+    measurement_T::AbstractString # температура измерения (то значения, которое записывается в конец названия файла)
+    # например "T100"
+    configuration_type::AbstractString # тип конфигурации  
+
+    configuration_name::AbstractString # имя конфигурации
+    pyr_T1::Float64 # pyrometer 1
+    pyr_T2::Float64 # pyrometer 2
+    pyr_T3::Float64 # pyrometer 3
+    bb_T::Float64 # bb reference temperature
+    power::Float64 # power meter reading
+    mir1_rotation::Float64 # mirror 1 rotating stage reading
+    mir2_position::Float64 # mirror 2 positioner reading
+    sample_coordinate::Float64 # sample positioner reading
+    file_path::AbstractString
+    InstrumentState()=new("","","",-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,"")
+end
+# reference to the obj
+const inst_state = Ref(InstrumentState())
+const json_string = Ref{JSON3.Object}()
+
+# callbacks
+function request_port_names(serv::tcp_server,sock::TCPSocket)
+    line =reduce(*,"  "*string(i[1]) for i in serv.clients_list)
+    try_write(sock,line)
 end
 function stop_server(serv::tcp_server,::TCPSocket)
     serv.shut_down_server=true
 end
- D = Dict("get_port_names"=>get_port_names,"stop_server"=>stop_server)
+function read_json(::tcp_server,socket::TCPSocket)
+    json_string[] = JSON3.read(readline(socket))
+    JSON3.pretty(stdout,json_string[])
+end
+StructTypes.StructType(::Type{InstrumentState}) = StructTypes.Mutable()
+function read_instrument_state(::tcp_server,socket::TCPSocket)
+     JSON3.read!(readline(socket), inst_state[])
+     @show inst_state[]
+end
+ D = Dict("request_port_names"=>request_port_names,
+ "stop_server"=>stop_server,
+ "read_json"=>read_json,
+ "read_instrument_state"=>read_instrument_state)
  s = start_server(port=DEFAULT_PORT,commands = D)
 
 
