@@ -140,3 +140,4 @@ copy(A(5,2.0))
 A(5,1.0)[A(3,1.0)] #this works because we added non-integer indexing 
 Base.one(::A) = A(1,1)
 end
+
