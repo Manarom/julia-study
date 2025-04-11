@@ -325,7 +325,7 @@ macro SL_str(s::String,flag)
     end
 end
 flag="true"
-@macroexpand SL"1:10""true"
+@macroexpand SL"1:10"*"true"
 SL"1:10"flag
 Base.parse(Bool,"true")
 
