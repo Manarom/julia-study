@@ -84,4 +84,17 @@ begin
    for i in Iterators.takewhile(i->i<5,a) # takes while first function returns true
         @show i
    end
+   sum=0
+   for i in Iterators.cycle(a) # takes elements cyclically 
+    @show i
+    @show    sum+=i 
+        sum<=12 || break
+   end
+   b=[22,33]
+   for i in Iterators.product(a,b)
+        @show i
+   end
+   collect(Iterators.product(a,b))
+   collect(Iterators.flatten((a,b))) # <= concatenates iteraors (input rgument  - tuple of iterators)
 end
+
